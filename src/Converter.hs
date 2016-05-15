@@ -1,87 +1,96 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE DeriveFunctor #-}
+{-# LANGUAGE DeriveTraversable #-}
+{-# LANGUAGE DeriveFoldable #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module Converter where
 
-import Data.Text hiding (empty)
-import Turtle
+import Data.Text (isInfixOf, unpack)
+import TextShow
+import TextShow.Data.Char (showbLitString)
+import Turtle hiding (toText)
 import Prelude hiding (FilePath, concat)
 import Control.Monad.IO.Class
 import Control.Monad.Trans.Except
-import Filesystem.Path.CurrentOS (toText)
 
-solveWithFOASL :: Text -> Shell Bool
+solveWithFOASL :: TextShow a => Formulae (Expr a) -> Shell Bool
 solveWithFOASL input = do 
     currentDir <- pwd
     file <- using $ mktempfile currentDir "test"
-    output file (return input)
-    let fileStr = either (error "handle this in solveFOASL") (id) $ toText file
-    (exitCode, text) <- liftIO $ procStrict "./lssl" [fileStr] empty
+    output file $ return $ toText $ showb input
+    (exitCode, text) <- liftIO $ procStrict "lssl" [(format fp) file] empty
     return $ isInfixOf "Proof found" text
 
-data Formulae = Lit Bool
+data Formulae a = Lit Bool
               | Emp
-              | Expr :|-> [Expr]
-              | Expr :=== Expr 
-              | Expr :> Expr
-              | Expr :< Expr
-              | Expr :<= Expr
-              | Expr :>= Expr
-              | Not Formulae 
-              | Formulae :& Formulae 
-              | Formulae :| Formulae 
-              | Formulae :-> Formulae 
-              | Star Formulae Formulae 
-              | Formulae :-* Formulae 
-              | Exists Var Formulae 
-              | Forall Var Formulae 
-              | Ls Expr Expr 
-              | Tr Expr
+              | a :|-> [a]
+              | a :== a 
+              | a :> a
+              | a :< a
+              | a :<= a
+              | a :>= a
+              | Not (Formulae a) 
+              | Formulae a :& Formulae a 
+              | Formulae a :| Formulae a 
+              | Formulae a :-> Formulae a 
+              | Star (Formulae a) (Formulae a) 
+              | Formulae a :-* Formulae a 
+              | Exists a (Formulae a) 
+              | Forall a (Formulae a) 
+              | Ls a a 
+              | Tr a
+    deriving (Show, Functor, Traversable, Foldable)
 
-data Expr = Var Text
-          | Expr :+ Expr
-          | Expr :- Expr
-          | Expr :* Expr
-          | Expr :/ Expr
-          | Expr :^ Expr
+data Expr a = Var a
+          | Expr a :+ Expr a
+          | Expr a :- Expr a
+          | Expr a :* Expr a
+          | Expr a :/ Expr a
+          | Expr a :^ Expr a
+    deriving (Show, Functor, Traversable, Foldable)
 
-type Var = Text
+ -- unpack . showbLitString 
 
-instance Show Expr where
-  show = unpack . exprToText
+instance TextShow a => TextShow (Expr a) where
+  showb (Var a) = showb a
+  showb (a :+ b) = 
+    showbParen True $ showb a <> " +" <> showbSpace <> showb b
+  showb (a :- b) = 
+    showbParen True $ showb a <> showbSpace <> "-" <> showbSpace <> showb b
+  showb (a :* b) = 
+    showbParen True $ showb a <> showbSpace <> "*" <> showbSpace <> showb b
+  showb (a :/ b) = 
+    showbParen True $ showb a <> showbSpace <> "/" <> showbSpace <> showb b
+  showb (a :^ b) = 
+    showbParen True $ showb a <> showbSpace <> "^" <> showbSpace <> showb b
 
-instance Show Formulae where
-  show = unpack . genText
+instance TextShow a => TextShow (Formulae a) where
+  showb (Lit True) = "true"
+  showb (Lit False) = "false"
+  showb Emp = "emp"
+  showb (a :|-> b) = showbParen True $ showb a <> " |-> " <> listOfVar b
+  showb (a :== b) = showbParen True $ showb a <> " = " <> showb b
+  showb (a :> b) = showbParen True $ showb a <> " > " <> showb b
+  showb (a :< b) = showbParen True $ showb a <> " < " <> showb b
+  showb (a :>= b) = showbParen True $ showb a <> " >= " <> showb b
+  showb (a :<= b) = showbParen True $ showb a <> " <= " <> showb b
+  showb (Not f) = ("~" :: Builder) <> showbParen True (showb f)
+  showb (a :& b) = showbParen True $ showb a <> " & " <> showb b
+  showb (a :-> b) = showbParen True $ showb a <> " -> " <> showb b
+  showb (Star a b) = showbParen True $ showb a <> " * "<> showb b
+  showb (a :-* b) = showbParen True $ showb a <> " -* " <> showb b
+  showb (Exists v f) =
+    ("exists " :: Builder) <> showb v <> showbSpace <> showbParen True (showb f)
+  showb (Forall v f) =
+    ("forall " :: Builder) <> showb v <> showbSpace <> showbParen True (showb f)
+  showb (Ls a b) = 
+    ("ls" :: Builder) <> showbParen True (showb a <> ", " <> showb b)
+  showb (Tr a) = 
+    ("tr" :: Builder) <> showbParen True (showb a)
 
-exprToText :: Expr -> Text
-exprToText (Var a) = a
-exprToText (a :+ b) = concat ["(",exprToText a," + ",exprToText b,")"]
-exprToText (a :- b) = concat ["(",exprToText a," - ",exprToText b,")"]
-exprToText (a :* b) = concat ["(",exprToText a," * ",exprToText b,")"]
-exprToText (a :/ b) = concat ["(",exprToText a," / ",exprToText b,")"]
-exprToText (a :^ b) = concat ["(",exprToText a," ^ ",exprToText b,")"]
-
-genText :: Formulae -> Text
-genText (Lit True)          = "true"
-genText (Lit False)         = "false"
-genText Emp                 = "emp"
-genText (a :|-> b)          = concat ["(",exprToText a," |-> ",listOfVar b,")"]
-genText (a :=== b)          = concat ["(",exprToText a," = ",exprToText b,")"]
-genText (a :> b)            = concat ["(",exprToText a," > ",exprToText b,")"]
-genText (a :< b)            = concat ["(",exprToText a," < ",exprToText b,")"]
-genText (a :>= b)           = concat ["(",exprToText a," >= ",exprToText b,")"]
-genText (a :<= b)           = concat ["(",exprToText a," <= ",exprToText b,")"]
-genText (Not f)             = concat ["~(",genText f,")"]
-genText (a :& b)            = concat ["(",genText a," & ",genText b,")"]
-genText (a :-> b)           = concat ["(",genText a," -> ",genText b,")"]
-genText (Star a b)            = concat ["(",genText a," * ",genText b,")"]
-genText (a :-* b)           = concat ["(",genText a," -* ",genText b,")"]
-genText (Exists v f)        = concat ["exists ",v,".(",genText f,")"]
-genText (Forall v f)        = concat ["forall ",v,".(",genText f,")"]
-genText (Ls a b)            = concat ["ls(",exprToText a,", ",exprToText b,")"]
-genText (Tr a)              = concat ["tr(",exprToText a,")"]
-
-listOfVar :: [Expr] -> Text
+listOfVar :: TextShow a => [a] -> Builder
 listOfVar c = case c of
   [] -> ""
-  [x] -> exprToText x
-  x:xs -> concat [exprToText x, ",", listOfVar xs]
+  [x] -> showb x
+  x:xs -> showb x <> "," <> listOfVar xs
