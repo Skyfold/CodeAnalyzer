@@ -41,7 +41,7 @@ data Formulae a = Lit Bool
               | Formulae a :<=> Formulae a
               | Star (Formulae a) (Formulae a) 
               | Formulae a :-* Formulae a 
-    deriving (Show, Functor, Traversable, Foldable)
+    deriving (Show, Functor, Traversable, Foldable )
 
 data Expr a b = Var a
               | Num b

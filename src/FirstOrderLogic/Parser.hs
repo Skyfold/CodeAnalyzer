@@ -90,8 +90,8 @@ reservedOp name = reserve emptyOps name
 --
 -- ==== __Examples__
 --
--- >>> parseString parseFormulae mempty "(y1 + 6) > (y1 + 5)"
--- Success ((Var "y1" :+ Num 6) :> (Var "y1" :+ Num 5))
+-- >>> parseString parseFOL mempty "(y1 + 6) > (y1 + 5)"
+-- Success (Formulae ((Var "y1" :+ Num 6) :> (Var "y1" :+ Num 5)))
 --
 parseFOL :: (Monad m, TokenParsing m) => m FOL
 parseFOL = 

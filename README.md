@@ -41,6 +41,8 @@ I plan to create an online interface (when I find the time) so it is easy for ot
   - Note, this will take awhile since it will download the Haskell compiler along with all the necessary libs.
 - `stack exec codeAnalyzer <FilePath>`
   - where `<FilePath>` is replaced with the path to the file you wrote your pseudocode in.
+- You can run the tests with `stack test`
+  - Note there is one pending test I have not finished
 
 # Examples
 
