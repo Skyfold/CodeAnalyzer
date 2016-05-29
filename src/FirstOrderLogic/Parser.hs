@@ -2,7 +2,12 @@
 {-# LANGUAGE FlexibleContexts  #-}
 {-# LANGUAGE InstanceSigs #-}
 
-module FirstOrderLogic.Parser (parseExpr, parseFormulae)  where
+module FirstOrderLogic.Parser 
+    ( parseVariable
+    , parseExpr
+    , parseFormulae
+    , parseFOL
+    ) where
 
 import Text.Trifecta hiding ((:^))
 import Control.Applicative ((<|>))
@@ -23,16 +28,16 @@ import Prelude hiding (lookup)
 --
 -- Basic usage:
 --
--- >>> parseString withText mempty "y1"
+-- >>> parseString parseVariable mempty "y1"
 -- Success "y1"
 --
--- >>> parseString withText mempty "y1\n \n  "
+-- >>> parseString parseVariable mempty "y1\n \n  "
 -- Success "y1"
 --
--- >>> parseString withText mempty "bla9000\n\n "
+-- >>> parseString parseVariable mempty "bla9000\n\n "
 -- Success "bla9000"
-withText :: (Monad m, TokenParsing m) => m String
-withText = token $ do
+parseVariable :: (Monad m, TokenParsing m) => m String
+parseVariable = token $ do
     val <- (:) <$> (letter <?> "variables start with letters")
                <*> (many alphaNum)
     return val
@@ -47,25 +52,25 @@ withText = token $ do
 -- >>> parseString parseExpr mempty "(5 * a)"
 -- Success (Num 5 :* Var "a")
 --
--- >>> parseString parseExpr mempty "(5 div 6) - a"
+-- >>> parseString parseExpr mempty "(5 / 6) - a"
 -- Success (Div (Num 5) (Num 6) :- Var "a")
 --
-parseExpr :: (Monad m, TokenParsing m) => m (Expr Integer)
+parseExpr :: (Monad m, TokenParsing m) => m (SBVExpr)
 parseExpr = buildExpressionParser exprTable term
     <?> "expression"
 
-term :: (Monad m, TokenParsing m) => m (Expr Integer)
+term :: (Monad m, TokenParsing m) => m (SBVExpr)
 term = parens parseExpr
     <|> (integer >>= (\a -> return (Num a)))
-    <|> (withText >>= (\a -> return (Var a)))
+    <|> (parseVariable >>= (\a -> return (Var a)))
     <?> "simple expression"
 
-exprTable :: (Monad m, TokenParsing m) => [[Operator m (Expr Integer)]]
-exprTable = [ [prefix "-"   (fmap negate), prefix "+" id ]
+exprTable :: (Monad m, TokenParsing m) => [[Operator m (SBVExpr)]]
+exprTable = [ [prefix "-"   (fmap negate)]
             , [binary "^"   (:^) AssocLeft]
-            , [binary "*"   (:*) AssocLeft, binary "quot" Quot AssocLeft
-            ,  binary "rem" Rem  AssocLeft, binary "div"  Div  AssocLeft
-            ,  binary "mod" Mod  AssocLeft]
+            , [binary "*"   (:*) AssocLeft, binary "`quot`" Quot AssocLeft
+            ,  binary "`rem`" Rem  AssocLeft, binary "/"    Div AssocLeft
+            ,  binary "%"   Mod  AssocLeft]
             , [binary "+"   (:+) AssocLeft, binary "-"    (:-) AssocLeft ]
             ]
 
@@ -86,24 +91,23 @@ reservedOp name = reserve emptyOps name
 --
 -- ==== __Examples__
 --
--- >>> parseString parseFormulae mempty "y1 > y2"
--- Success (Var "y1" :> Var "y2")
--- 
--- >>> parseString parseFormulae mempty "(y1 = 6) && (y1 < y2)"
--- Success ((Var "y1" :== Num 6) :& (Var "y1" :< Var "y2"))
---
--- >>> parseString parseFormulae mempty "~((~emp * ~emp) -* False)"
--- Success (Not (Star (Not Emp) (Not Emp) :-* Lit False))
---
--- >>> parseString parseFormulae mempty "((fun <= boo) || (boo >= fun)) -> ~(fun = boo)"
--- Success (((Var "fun" :<= Var "boo") :| (Var "boo" :>= Var "fun")) :-> Not (Var "fun" :== Var "boo"))
---
 -- >>> parseString parseFormulae mempty "(y1 + 6) > (y1 + 5)"
 -- Success ((Var "y1" :+ Num 6) :> (Var "y1" :+ Num 5))
 --
+parseFOL :: (Monad m, TokenParsing m) => m FOL
+parseFOL = 
+    choice [     Forall 
+            <$> (symbol "forall" >> parseVariable `sepBy1` symbolic ',')
+            <*> (Formulae <$> parseFormulae)
+           ,     Exists 
+            <$> (symbol "exists" >> parseVariable `sepBy1` symbolic ',')
+            <*> (Formulae <$> parseFormulae)
+           , Formulae <$> parseFormulae
+           ]
+
 parseFormulae :: (Monad m, TokenParsing m) => m Condition
 parseFormulae = buildExpressionParser formulaeTable formulae
-    <?> "Formulae in FOL"
+    <?> "Formulae"
 
 formulae :: (Monad m, TokenParsing m) => m Condition
 formulae = choice [ try $ parens parseFormulae
@@ -113,8 +117,7 @@ formulae = choice [ try $ parens parseFormulae
 
 formulaeTable :: (Monad m, TokenParsing m) => [[Operator m Condition]]
 formulaeTable = 
-    [ [forall, exists ]  
-    , [ prefix "~" Not]
+    [ [ prefix "~" Not]
     , [ binary "&&" (:&) AssocRight]
     , [ binary "||" (:|) AssocRight]
     , [ binary "->" (:->) AssocRight]
@@ -123,12 +126,6 @@ formulaeTable =
     ,   binary "xor" (:<+>) AssocRight ]
     , [ binary "-*" (:-*) AssocRight, binary "*" Star AssocRight]
     ]
-
-forall :: (Monad m, TokenParsing m) => Operator m Condition
-forall = Prefix (Forall <$> (symbol "forall" >> withText `sepBy1` symbolic ','))
-
-exists :: (Monad m, TokenParsing m) => Operator m Condition
-exists = Prefix (Exists <$> (symbol "exists" >> withText `sepBy1` symbolic ','))
 
 literal :: (Monad m, TokenParsing m) => m Condition
 literal = (symbol "emp" >> return Emp)
@@ -142,13 +139,13 @@ literal = (symbol "emp" >> return Emp)
 --
 -- Basic usage:
 --
--- >>> parseString (parseExprConnective withText) mempty "y1 > y2" :: Result (Formulae String)
+-- >>> parseString (parseExprConnective parseVariable) mempty "y1 > y2" :: Result (Formulae String)
 -- Success ("y1" :> "y2")
 --
--- >>> parseString (parseExprConnective withText) mempty "y1 \n \n=\n  y2  \n" :: Result (Formulae String)
+-- >>> parseString (parseExprConnective parseVariable) mempty "y1 \n \n=\n  y2  \n" :: Result (Formulae String)
 -- Success ("y1" :== "y2")
 --
--- >>> parseString (parseExprConnective withText) mempty "y1 \n \n|->\n  y2  \n" :: Result (Formulae String)
+-- >>> parseString (parseExprConnective parseVariable) mempty "y1 \n \n|->\n  y2  \n" :: Result (Formulae String)
 -- Success ("y1" :|-> ["y2"])
 --
 -- Will parse any of the following:
@@ -168,6 +165,7 @@ parseExprConnective exprParser = do
             r <- exprParser `sepBy1` symbolic ','
             return $ l :|-> r
         , textSymbol "=" >> exprParser  >>= (\b -> return $ l :== b)
+        , textSymbol "/=" >> exprParser  >>= (\b -> return $ l :/= b)
         , textSymbol "<=" >> exprParser >>= (\b -> return $ l :<= b)
         , textSymbol ">=" >> exprParser >>= (\b -> return $ l :>= b)
         , textSymbol ">" >> exprParser  >>= (\b -> return $ l :> b)

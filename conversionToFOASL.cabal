@@ -24,22 +24,21 @@ build-type:          Simple
 -- extra-source-files:  
 cabal-version:       >=1.10
 
-
-library
-  exposed-modules:     FOASL.Converter
+executable codeAnalyzer
+  hs-source-dirs:      src
+  main-is:             Main.hs
+  ghc-options:         -threaded -rtsopts -with-rtsopts=-N
 
   other-modules:       FirstOrderLogic.Parser
                      , FirstOrderLogic.Syntax
-                     , SBV.Parser
-                     , SBV.FormulaeToSBV
-                     , HoareLogic.Structure
                      , HoareLogic.Parser
-                     , WeakestPrecondition.Syntax 
+                     , HoareLogic.Structure
+                     , SBV.FormulaeToSBV
+                     , WeakestPrecondition.Syntax
 
   build-depends:       base >=4.8 && <4.9
                      , text >=1.1.0.0
                      , turtle == 1.*
-                     , transformers == 0.4.*
                      , foldl == 1.*
                      , system-filepath == 0.4.*
                      , text-show == 3.*
@@ -50,6 +49,37 @@ library
                      , unordered-containers == 0.2.*
                      , mtl == 2.*
                      , parsers == 0.12.*
+                     , transformers == 0.4.*
+                     , conversionToFOASL
+                     , ansi-wl-pprint
+
+  default-language:    Haskell2010
+
+library
+  exposed-modules:     FOASL.Converter
+                     , FirstOrderLogic.Syntax
+                     , FirstOrderLogic.Parser
+                     , HoareLogic.Parser
+                     , SBV.FormulaeToSBV
+                     , HoareLogic.Structure
+                     , WeakestPrecondition.Syntax 
+
+  build-depends:       base >=4.8 && <4.9
+                     , text >=1.1.0.0
+                     , turtle == 1.*
+                     , foldl == 1.*
+                     , system-filepath == 0.4.*
+                     , text-show == 3.*
+                     , trifecta == 1.5.*
+                     , containers >=0.5 && <0.6
+                     , sbv == 5.*
+                     , lens == 4.*
+                     , unordered-containers == 0.2.*
+                     , mtl == 2.*
+                     , parsers == 0.12.*
+                     , transformers == 0.4.*
+                     , ansi-wl-pprint
+
   hs-source-dirs:      src
   default-language:    Haskell2010
 
@@ -59,6 +89,18 @@ test-suite doctest
   main-is:             doctest-driver.hs
   build-depends:       base >=4.8 && <4.9 
                      , doctest
+
+  ghc-options:         -Wall -threaded -rtsopts -with-rtsopts=-N
+  default-language:    Haskell2010
+
+test-suite hspec
+  type:                exitcode-stdio-1.0
+  hs-source-dirs:      test
+  main-is:             Spec.hs
+  build-depends:       base >=4.8 && <4.9 
+                     , conversionToFOASL
+                     , hspec == 2.2.*
+                     , QuickCheck == 2.*
 
   ghc-options:         -Wall -threaded -rtsopts -with-rtsopts=-N
   default-language:    Haskell2010

@@ -1,0 +1,7 @@
+// {-@ forall n, a (sum = n * a) @@ sum = (j * a) @-} 
+sum := 0;
+j := 0;
+while (j /= n) {
+    sum := sum + a;
+    j := j + 1; 
+}

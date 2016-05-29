@@ -1,84 +1,62 @@
 
-module HoareLogic.Parser  where
+module HoareLogic.Parser (readProof) where
 
 import Text.Trifecta
 import HoareLogic.Structure
-import Control.Lens (use, uses, (%=))
-import Data.HashMap.Strict (empty, fromList, insert, lookup)
-import Prelude hiding (lookup)
-import FirstOrderLogic.Parser
+import FirstOrderLogic.Parser (parseVariable, parseExpr, parseFormulae, parseFOL)
+import FirstOrderLogic.Syntax (Condition, FOL)
+import Control.Monad.IO.Class (MonadIO) 
+import qualified Data.Set as Set
 
--- | @proofSequent@ 
--- >>> parseString proofSequent mempty "// {-@ forall n, a (sum = n * a) @@ sum = (j * a) @-}\n sum := 0;\n j := 0;\nwhile (j /= n) {\nsum := sum + a;\nj := j + 1;}"
---
--- proofSequent :: (Monad m, TokenParsing m) => m ProofSequent
--- proofSequent = do
---     whiteSpace
---     (postCon, listOfInvariants) <- annotation
---     listOfSequents <- some sequent
---     finalVarTypes <- use mapOfVarType
---     return $ ProofSequent listOfSequents postCon listOfInvariants finalVarTypes
+-- | Read proof file
+readProof :: MonadIO m => String -> m (Maybe ProofSequent)
+readProof = parseFromFile proofSequent
 
--- annotation :: (Monad m, TokenParsing m) => m (Condition, [Condition])
--- annotation = commentStart >> symbol "{-@" >> do
---     postCon <- some $ noneOf "@"
---     listOfInvariants <- many $ 
---         (symbol "@@" >> some (noneOf "@") <?> "Expecting loop invariant")
---     _ <- symbol "@-}"
---     return $ (postCon, listOfInvariants)
+proofSequent :: (Monad m, TokenParsing m) => m ProofSequent
+proofSequent = do
+    whiteSpace
+    (postCon, listOfInvariants) <- annotation
+    listOfSequents <- some sequent
+    return $ 
+        ProofSequent 
+            (fst <$> listOfSequents)
+            postCon 
+            listOfInvariants
+            ((Set.unions (snd <$> listOfSequents)))
 
--- -- | @sequent@
--- -- >>> parseString (evalStateT sequent pseudocode) mempty "if (y < 6) {Int8 x := 8;}"
--- -- Success (IfThenElse "y < 6" [Assignment "x" "8"] [])
--- --
--- sequent :: ProofSequentParser Sequent
--- sequent = token $ choice 
---     [ symbol "if" >> do
---         condition <- parens $ many $ noneOf ")"
---         thenSequents <- braces $ many sequent
---         elseSequents <- option [] (symbol "else" >> braces (many sequent))
---         return $ 
---             IfThenElse condition thenSequents elseSequents
---     , symbol "while" >> do
---         condition <- parens $ many $ noneOf ")"
---         whileSequents <- braces $ many sequent
---         return $ While condition whileSequents
---     , assignment
---     ]
 
--- assignment :: ProofSequentParser Sequent
--- assignment = do
---     p <- use numberType
---     choice 
---         [ do 
---             a <- p
---             var <- token $ some alphaNum <?> "variable-name"
---             createVar var a
---             _ <- symbol ":="
---             expr <- manyTill anyChar semi
---             return $ Assignment var expr
---         , do
---             var <- token $ some alphaNum <?> "variable-name"
---             _ <- symbol ":="
---             expr <- manyTill anyChar semi
---             return $ Assignment var expr
---         ]
+annotation :: (Monad m, TokenParsing m) => m (FOL, [Condition])
+annotation = commentStart >> symbol "{-@" >> do
+    postCon <- parseFOL <?> "postcondition"
+    listOfInvariants <- many $ 
+        (symbol "@@" >> parseFormulae <?> "loop invariant")
+    _ <- symbol "@-}"
+    return $ (postCon, listOfInvariants)
 
--- commentStart :: ProofSequentParser ()
--- commentStart = symbol "//" >> return ()
+sequent :: (Monad m, TokenParsing m) => m (Sequent, Set.Set VariableName)
+sequent = token $ choice 
+    [ symbol "if" >> do
+        condition <- parens parseFormulae
+        thenSequents <- braces $ many sequent
+        elseSequents <- option [] (symbol "else" >> braces (many sequent))
+        return 
+            (IfThenElse 
+                condition 
+                (fst <$> thenSequents) 
+                (fst <$> elseSequents), 
+                (Set.unions (snd <$> thenSequents ++ elseSequents)))
+    , symbol "while" >> do
+        condition <- parens parseFormulae
+        whileSequents <- braces $ many sequent
+        return (While 
+                  condition 
+                  (fst <$> whileSequents),
+                  (Set.unions (snd <$> whileSequents)))
+    , do
+        v <- parseVariable <* symbol ":="
+        expr <- parseExpr <* semi
+        return $ (Assignment v expr, Set.singleton v)
+    ]
 
--- parserNumberType :: ProofSequentParser NumberType
--- parserNumberType = choice
---     [ symbol "Integer" >> return Integer
---     , symbol "Word8" >> return Word8
---     , symbol "Word16" >> return Word16
---     , symbol "Word32" >> return Word32
---     , symbol "Word64" >> return Word64
---     , symbol "Int8" >> return Int8
---     , symbol "Int16" >> return Int16
---     , symbol "Int32" >> return Int32 
---     , symbol "Int64" >> return Int64
---     ]
-
--- pseudocode :: ProofState
--- pseudocode = ProofState empty commentStart parserNumberType
+commentStart :: (Monad m, TokenParsing m) => m ()
+commentStart = symbol "//" >> return ()

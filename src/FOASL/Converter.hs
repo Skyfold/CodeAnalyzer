@@ -45,6 +45,7 @@ formatForFOASL formulae = case formulae of
     Emp -> "emp"
     (a :|-> b) -> showbParen True $ showb a <> " |-> " <> listOfVar b
     (a :== b) -> showbParen True $ showb a <> " = " <> showb b
+    (a :/= b) -> "(~" <> "(" <> showb a <> " = " <> showb b <> "))"
     (a :> b) -> showbParen True $ showb a <> " > " <> showb b
     (a :< b) -> showbParen True $ showb a <> " < " <> showb b
     (a :>= b) -> showbParen True $ showb a <> " >= " <> showb b
@@ -61,10 +62,6 @@ formatForFOASL formulae = case formulae of
         <> " | ((~(" <> formatForFOASL a <> ")) & (~(" <> formatForFOASL b <> ")))"
     (Star a b) -> showbParen True $ formatForFOASL a <> " * "<> formatForFOASL b
     (a :-* b) -> showbParen True $ formatForFOASL a <> " -* " <> formatForFOASL b
-    (Forall v f) -> 
-        ("forall " :: Builder) <> listOfVar v <> " " <> showbParen True (formatForFOASL f)
-    (Exists v f) -> 
-        ("forall " :: Builder) <> listOfVar v <> " " <> showbParen True (formatForFOASL f)
 
 listOfVar :: TextShow a => [a] -> Builder
 listOfVar c = case c of

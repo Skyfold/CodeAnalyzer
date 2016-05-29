@@ -1,26 +1,30 @@
 {-# LANGUAGE TemplateHaskell #-}
 
-module HoareLogic.Structure where
+module HoareLogic.Structure 
+    ( ProofSequent (..)
+    , Sequent (..)
+    , VariableName
+    , sequents
+    , postCondition
+    , loopInvariant 
+    ) where
 
--- import Data.HashMap.Strict (lookup, HashMap, insert)
-import Control.Lens (makeLenses, use, uses, (%=), (+=), traversed)
--- import Control.Monad.Trans.Class (lift)
--- import Control.Monad.Trans.State (StateT)
--- import Text.Trifecta (Parser, unexpected)
+import Control.Lens (makeLenses)
 import Prelude hiding (lookup)
 import FirstOrderLogic.Syntax
+import Data.SBV (Symbolic, SInteger)
+import Data.Set (Set)
 
 
 data ProofSequent = ProofSequent {
       _sequents :: [Sequent]
-    , _postCondition :: Condition
-    , _loopInvariant :: Condition
+    , _postCondition :: FOL
+    , _loopInvariant :: [Condition]
+    , _AllVariables :: Set VariableName
     }
-  deriving Show
 
 data Sequent = IfThenElse Condition [Sequent] [Sequent]
              | While Condition [Sequent]
-             | Assignment String (Expr Integer) 
-    deriving Show
+             | Assignment VariableName (SBVExpr) 
 
 $(makeLenses ''ProofSequent)
