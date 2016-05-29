@@ -17,11 +17,6 @@ import Text.PrettyPrint.ANSI.Leijen (putDoc, pretty)
 type MapSInteger = HashMap String SInteger
 type MapQuan = HashMap String (Maybe SBVi.Quantifier)
 
--- for testing only
--- instance Show SBVi.Quantifier where
---     show SBVi.ALL = "ALL"
---     show SBVi.EX = "EX"
-
 checkCondition :: FOL -> IO (ThmResult)
 checkCondition fol = do 
     let (f, map) = folToSBV fol empty
@@ -158,8 +153,8 @@ exprToSBV expr = case expr of
     a <- exprToSBV l
     b <- exprToSBV r
     return (\z -> sMod (a z) (b z))
-  (l :^ r) -> do
-    a <- exprToSBV l
-    b <- exprToSBV r
-    return (\z -> (.^) (a z) (b z))
+  -- (l :^ r) -> do
+  --   a <- exprToSBV l
+  --   b <- exprToSBV r
+  --   return (\z -> (.^) (a z) (b z))
 

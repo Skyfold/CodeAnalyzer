@@ -48,7 +48,7 @@ data Expr a b = Var a
               | Expr a b :+ Expr a b
               | Expr a b :- Expr a b
               | Expr a b :* Expr a b
-              | Expr a b :^ Expr a b
+              -- | Expr a b :^ Expr a b
               | Quot (Expr a b) (Expr a b)
               | Rem (Expr a b) (Expr a b)
               | Div (Expr a b) (Expr a b)
@@ -62,7 +62,7 @@ mapVar f expr = case expr of
     a :+ b -> mapVar f a :+ mapVar f b
     a :- b -> mapVar f a :- mapVar f b
     a :* b -> mapVar f a :* mapVar f b
-    a :^ b -> mapVar f a :^ mapVar f b
+   -- a :^ b -> mapVar f a :^ mapVar f b
     Quot a b -> Quot (mapVar f a) (mapVar f b)
     Rem a b -> Rem (mapVar f a) (mapVar f b)
     Div a b -> Div (mapVar f a) (mapVar f b)
@@ -98,7 +98,7 @@ instance (Pretty a, Pretty b) => Pretty (Expr a b) where
         (a :+ b) -> parens $ (pretty a) <+> char '+' <+> (pretty b)
         (a :- b) -> parens $ (pretty a) <+> char '-' <+> (pretty b)
         (a :* b) -> parens $ (pretty a) <+> char '*' <+> (pretty b)
-        (a :^ b) -> parens $ (pretty a) <+> char '^' <+> (pretty b)
+       -- (a :^ b) -> parens $ (pretty a) <+> char '^' <+> (pretty b)
         (Quot a b) -> parens $ (pretty a) <+> text "`quot`" <+> (pretty b)
         (Rem a b) -> parens $ (pretty a) <+> text "`rem`" <+> (pretty b)
         (Div a b) -> parens $ (pretty a) <+> char '/' <+> (pretty b)

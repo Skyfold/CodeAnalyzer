@@ -67,7 +67,6 @@ term = parens parseExpr
 
 exprTable :: (Monad m, TokenParsing m) => [[Operator m (SBVExpr)]]
 exprTable = [ [prefix "-"   (fmap negate)]
-            , [binary "^"   (:^) AssocLeft]
             , [binary "*"   (:*) AssocLeft, binary "`quot`" Quot AssocLeft
             ,  binary "`rem`" Rem  AssocLeft, binary "/"    Div AssocLeft
             ,  binary "%"   Mod  AssocLeft]
