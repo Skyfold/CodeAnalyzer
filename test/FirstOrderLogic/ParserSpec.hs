@@ -12,7 +12,6 @@ spec = do
     it "should" $ do
       pendingWith "Testing is usefull, but time consuming"
 
--- instance (Arbitrary a, Arbitrary b) => Arbitrary (Expr a b) where
---   arbitrary a = case a of
-    
---   liftM2 Expr arbitrary arbitrary
+instance (Arbitrary a, Arbitrary b) => Arbitrary (Expr a b) where
+    arbitrary a = case a of
+        liftM2 Expr arbitrary arbitrary

@@ -34,9 +34,7 @@ mapSub f q = case q of
 --
 -- >>> findWkPre [] ((Var "m" :>= Var "a") :& (Var "m" :>= Var "b")) [(IfThenElse (Var "a" :> Var "b") [Assignment "m" (Var "a")] [Assignment "m" (Var "b")])]
 -- Right (((Var "a" :> Var "b") :-> ((Var "a" :>= Var "a") :& (Var "a" :>= Var "b"))) :& (Not (Var "a" :> Var "b") :-> ((Var "b" :>= Var "a") :& (Var "b" :>= Var "b"))))
-
-
-
+--
 findWkPre :: [Condition] -> Condition -> [Sequent] -> Either Error Condition
 findWkPre inv con listSeq = case listSeq of
     [] -> return con

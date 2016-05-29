@@ -1,4 +1,4 @@
-name:                conversionToFOASL
+name:                codeAnalyzer
 
 -- The package version.  See the Haskell package versioning policy (PVP) 
 -- for standards guiding when and how versions should be incremented.
@@ -50,7 +50,7 @@ executable codeAnalyzer
                      , mtl == 2.*
                      , parsers == 0.12.*
                      , transformers == 0.4.*
-                     , conversionToFOASL
+                     , codeAnalyzer
                      , ansi-wl-pprint
 
   default-language:    Haskell2010
@@ -98,7 +98,7 @@ test-suite hspec
   hs-source-dirs:      test
   main-is:             Spec.hs
   build-depends:       base >=4.8 && <4.9 
-                     , conversionToFOASL
+                     , codeAnalyzer
                      , hspec == 2.2.*
                      , QuickCheck == 2.*
 
