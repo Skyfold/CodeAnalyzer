@@ -55,6 +55,20 @@ data Expr a b = Var a
               | Mod (Expr a b) (Expr a b)
     deriving (Show, Functor, Traversable, Foldable)
 
+mapVar :: (a -> Expr a b) -> Expr a b -> Expr a b
+mapVar f expr = case expr of
+    Var a -> f a
+    Num b -> Num b
+    a :+ b -> mapVar f a :+ mapVar f b
+    a :- b -> mapVar f a :- mapVar f b
+    a :* b -> mapVar f a :* mapVar f b
+    a :^ b -> mapVar f a :^ mapVar f b
+    Quot a b -> Quot (mapVar f a) (mapVar f b)
+    Rem a b -> Rem (mapVar f a) (mapVar f b)
+    Div a b -> Div (mapVar f a) (mapVar f b)
+    Mod a b -> Mod (mapVar f a) (mapVar f b)
+    
+
 instance (Pretty a) => Pretty (Formulae a) where
     pretty formulae = case formulae of
         Lit a -> pretty a

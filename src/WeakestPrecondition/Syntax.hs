@@ -35,6 +35,8 @@ mapSub f q = case q of
 -- >>> findWkPre [] ((Var "m" :>= Var "a") :& (Var "m" :>= Var "b")) [(IfThenElse (Var "a" :> Var "b") [Assignment "m" (Var "a")] [Assignment "m" (Var "b")])]
 -- Right (((Var "a" :> Var "b") :-> ((Var "a" :>= Var "a") :& (Var "a" :>= Var "b"))) :& (Not (Var "a" :> Var "b") :-> ((Var "b" :>= Var "a") :& (Var "b" :>= Var "b"))))
 
+
+
 findWkPre :: [Condition] -> Condition -> [Sequent] -> Either Error Condition
 findWkPre inv con listSeq = case listSeq of
     [] -> return con
@@ -48,7 +50,8 @@ findWkPre inv con listSeq = case listSeq of
 --
 wkPre :: [Condition] -> Condition -> Sequent -> Either Error Condition
 wkPre inv con sequent = case sequent of
-    Assignment str expr -> Right $ (replaceVar str expr) <$> con
+    Assignment str expr -> 
+        Right $ mapVar (\a -> if (a == str) then expr else (Var a)) <$> con
     IfThenElse ifCon thenSeq elseSeq -> do
         l <- findWkPre inv con thenSeq
         r <- findWkPre inv con elseSeq
@@ -59,9 +62,3 @@ wkPre inv con sequent = case sequent of
             i:xs -> do
                 wlp <- findWkPre xs i s
                 return $ (i :& (((e :& i) :-> wlp) :& (((Not e) :& i) :-> con)))
-
-replaceVar :: VariableName -> SBVExpr -> SBVExpr -> SBVExpr
-replaceVar cmpStr expr (Var str)
-    | cmpStr == str = expr
-    | otherwise = (Var str)
-replaceVar _ _ expr = expr
