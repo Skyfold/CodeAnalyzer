@@ -10,22 +10,29 @@ import FirstOrderLogic.Syntax
 
 -- | Find the weakest precondition given a 'ProofSequent'
 wkPrecondition :: ProofSequent -> Either Error FOL
-wkPrecondition p = 
-    mapSub 
-        (\post -> findWkPre (_loopInvariant p) post (_sequents p))
-        (_postCondition p)
+wkPrecondition p = do
+    resultFOL <- mapOver 
+                    (\post -> findWkPre (_loopInvariant p) post (_sequents p))
+                    (_postCondition p)
+    return $ mapSub (:->) resultFOL (_preCondition p)
 
-mapSub :: (Condition -> Either Error Condition) -> FOL -> Either Error FOL
-mapSub f q = case q of
-    Forall vars a -> do
-        r <- mapSub f a
-        return $ Forall vars r 
-    Exists vars a -> do
-        r <- mapSub f a
-        return $ Exists vars r 
-    Formulae a -> do
+mapOver :: (Condition -> Either Error Condition) -> FOL -> Either Error FOL
+mapOver f fol = case fol of
+    Forall var a -> do
+        r <- mapOver f a
+        return $ Forall var r
+    Exists var a -> do
+        r <- mapOver f a
+        return $ Forall var r
+    Formulae a -> do 
         r <- f a
         return $ Formulae r
+
+mapSub :: (Condition -> Condition -> Condition) -> FOL -> FOL -> FOL
+mapSub f preFOL postFOL = case postFOL of
+    Forall variables _ -> Forall variables (mapSub f preFOL postFOL)
+    Exists variables _ -> Exists variables (mapSub f preFOL postFOL)
+    Formulae a -> (f a) <$> preFOL
 
 -- | Find the weakest precondition given:
 -- list of invariants, represented as '[Condition]'

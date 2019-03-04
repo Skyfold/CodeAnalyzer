@@ -5,7 +5,7 @@
 
 module FirstOrderLogic.Syntax where
 
-import Text.PrettyPrint.ANSI.Leijen
+import Text.PrettyPrint.ANSI.Leijen hiding ((<$>))
 
 type FOL = Quantifier Condition
 type Condition = Formulae SBVExpr
@@ -21,6 +21,31 @@ data Quantifier a = Forall [VariableName] (Quantifier a)
                   | Exists [VariableName] (Quantifier a) 
                   | Formulae a
     deriving (Show, Functor, Traversable, Foldable)
+
+formulaeT :: Applicative f => (a -> f c) -> Formulae a -> f (Formulae c)
+formulaeT f expr = case expr of
+    Emp -> pure Emp
+    Lit a -> pure $ Lit a
+    a :|-> b -> (:|->) <$> f a <*> traverse f b
+    a :== b  -> (:==) <$> f a <*> f b
+    a :/= b -> (:/= ) <$> f a <*> f b
+    a :> b -> (:>) <$> f a <*> f b
+    a :< b -> (:<) <$> f a <*> f b
+    a :<= b -> (:<=) <$> f a <*> f b
+    a :>= b -> (:>=) <$> f a <*> f b
+    Not a -> Not <$> formulaeT f a
+    a :& b -> (:& ) <$> formulaeT f a <*> formulaeT f b
+    a :| b -> (:| ) <$> formulaeT f a <*> formulaeT f b
+    a :-> b -> (:-> ) <$> formulaeT f a <*> formulaeT f b
+    a :~& b -> (:~& ) <$> formulaeT f a <*> formulaeT f b
+    a :~| b -> (:~| ) <$> formulaeT f a <*> formulaeT f b
+    a :<+> b -> (:<+> ) <$> formulaeT f a <*> formulaeT f b
+    a :<=> b -> (:<=> ) <$> formulaeT f a <*> formulaeT f b
+    Star a b -> Star <$> formulaeT f a <*> formulaeT f b
+    a :-* b -> (:-* ) <$> formulaeT f a <*> formulaeT f b
+
+-- data BinaryFormulae = (:|-> 
+--                     | 
 
 data Formulae a = Lit Bool
               | Emp
@@ -42,6 +67,18 @@ data Formulae a = Lit Bool
               | Star (Formulae a) (Formulae a) 
               | Formulae a :-* Formulae a 
     deriving (Show, Functor, Traversable, Foldable )
+
+vars :: Applicative f => (a -> f c) -> Expr a b -> f (Expr c b)
+vars f expr = case expr of
+    Var a -> Var <$> f a
+    Num b -> Num <$> pure b
+    l :+ r -> (:+) <$> vars f l <*> vars f r
+    l :- r -> (:-) <$> vars f l <*> vars f r
+    l :* r -> (:*) <$> vars f l <*> vars f r
+    Quot l r -> Quot <$> vars f l <*> vars f r 
+    Rem l r -> Rem <$> vars f l <*> vars f r   
+    Div l r -> Div <$> vars f l <*> vars f r 
+    Mod l r -> Mod <$> vars f l <*> vars f r 
 
 data Expr a b = Var a
               | Num b
@@ -106,12 +143,12 @@ instance (Pretty a, Pretty b) => Pretty (Expr a b) where
 
 instance Pretty a => Pretty (Quantifier a) where
     pretty a = case a of
-        Forall vars inner -> 
+        Forall variables inner -> 
                 text "forall" 
-            <+> encloseSep empty empty comma (fmap pretty vars)
+            <+> encloseSep empty empty comma (fmap pretty variables)
             <+> parens (pretty inner)
-        Exists vars inner ->
+        Exists variables inner ->
                 text "exists" 
-            <+> encloseSep empty empty comma (fmap pretty vars)
+            <+> encloseSep empty empty comma (fmap pretty variables)
             <+> parens (pretty inner)
         Formulae inner -> pretty inner

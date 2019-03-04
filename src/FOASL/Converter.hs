@@ -4,7 +4,7 @@ module FOASL.Converter (solveWithFOASL) where
 
 import Data.Text (isInfixOf, Text)
 import Turtle ( pwd, mktempfile, using, procStrict
-              , format, fp, empty, Shell, output)
+              , format, fp, empty, Shell, output, unsafeTextToLine)
 import Control.Monad.IO.Class (liftIO)
 import Prelude hiding (FilePath)
 import FirstOrderLogic.Syntax (Formulae (..))
@@ -34,8 +34,8 @@ solveWithFOASL :: Formulae Text -> Shell Bool
 solveWithFOASL input = do 
     currentDir <- pwd
     file <- using $ mktempfile currentDir "test"
-    output file $ return $ toText $ formatForFOASL input
-    (exitCode, text) <- liftIO $ procStrict "lssl" [(format fp) file] empty
+    output file $ return $ unsafeTextToLine $ toText $ formatForFOASL input
+    (_, text) <- liftIO $ procStrict "lssl" [(format fp) file] empty
     return $ isInfixOf "Proof found" text
 
 formatForFOASL :: Formulae Text -> Builder

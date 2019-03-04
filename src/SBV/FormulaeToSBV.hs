@@ -10,7 +10,6 @@ import Data.SBV
 import qualified Data.SBV.Internals as SBVi
 import Data.HashMap.Strict 
 import Control.Monad.State.Strict
-import Control.Monad.Except
 import Prelude hiding (lookup, map)
 import Text.PrettyPrint.ANSI.Leijen (putDoc, pretty)
 
@@ -19,38 +18,38 @@ type MapQuan = HashMap String (Maybe SBVi.Quantifier)
 
 checkCondition :: FOL -> IO (ThmResult)
 checkCondition fol = do 
-    let (f, map) = folToSBV fol empty
+    let (f, sMap) = folToSBV fol empty
     putDoc $ pretty fol
     putStrLn ""
-    prove (test empty f (toList map))
+    prove (test empty f (toList sMap))
 
 test :: MapSInteger -> (MapSInteger -> SBool) -> 
     [(String, Maybe SBVi.Quantifier)] -> Symbolic SBool
-test map f list = case list of
-    [] -> return $ f map
+test sMap f list = case list of
+    [] -> return $ f sMap
     (k,v):xs -> do
         sInt <- mkSymWord v (Just k)
-        test (union (singleton k sInt) map) f xs
+        test (union (singleton k sInt) sMap) f xs
 
 folToSBV :: FOL -> MapQuan -> (MapSInteger -> SBool, MapQuan)
-folToSBV fol map = case fol of
-    Forall vars inner -> 
+folToSBV fol sMap = case fol of
+    Forall variables inner -> 
         folToSBV 
             inner
             (unionWith 
                 combineQ
-                (fromList ((,Just SBVi.ALL) <$> vars))
-                map
+                (fromList ((,Just SBVi.ALL) <$> variables))
+                sMap
             )
-    Exists vars inner ->
+    Exists variables inner ->
         folToSBV 
             inner
             (unionWith 
                 combineQ
-                (fromList ((,Just SBVi.EX) <$> vars))
-                map
+                (fromList ((,Just SBVi.EX) <$> variables))
+                sMap
             )
-    Formulae inner -> runState (formulaeToSBV inner) map
+    Formulae inner -> runState (formulaeToSBV inner) sMap
 
 combineQ :: Maybe SBVi.Quantifier -> Maybe SBVi.Quantifier -> Maybe SBVi.Quantifier
 combineQ _ (Just SBVi.ALL) = Just SBVi.ALL

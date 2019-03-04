@@ -4,7 +4,7 @@ module HoareLogic.Parser (readProof) where
 import Text.Trifecta
 import HoareLogic.Structure
 import FirstOrderLogic.Parser (parseVariable, parseExpr, parseFormulae, parseFOL)
-import FirstOrderLogic.Syntax (Condition, FOL)
+import FirstOrderLogic.Syntax (Condition, FOL, Formulae (..), Quantifier (..))
 import Control.Monad.IO.Class (MonadIO) 
 import qualified Data.Set as Set
 
@@ -15,23 +15,28 @@ readProof = parseFromFile proofSequent
 proofSequent :: (Monad m, TokenParsing m) => m ProofSequent
 proofSequent = do
     whiteSpace
-    (postCon, listOfInvariants) <- annotation
+    (preCon, postCon, listOfInvariants) <- annotation
     listOfSequents <- some sequent
     return $ 
         ProofSequent 
             (fst <$> listOfSequents)
             postCon 
+            preCon
             listOfInvariants
             ((Set.unions (snd <$> listOfSequents)))
 
 
-annotation :: (Monad m, TokenParsing m) => m (FOL, [Condition])
+annotation :: (Monad m, TokenParsing m) => m (FOL, FOL, [Condition])
 annotation = commentStart >> symbol "{-@" >> do
+    preCon <- option (Formulae (Lit True)) (try $ do 
+        l <- parseFOL <?> "precondition" 
+        _ <- symbol "#"
+        return l)
     postCon <- parseFOL <?> "postcondition"
     listOfInvariants <- many $ 
         (symbol "@@" >> parseFormulae <?> "loop invariant")
     _ <- symbol "@-}"
-    return $ (postCon, listOfInvariants)
+    return $ (preCon, postCon, listOfInvariants)
 
 sequent :: (Monad m, TokenParsing m) => m (Sequent, Set.Set VariableName)
 sequent = token $ choice 

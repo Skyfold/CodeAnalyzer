@@ -1,0 +1,6 @@
+.direnv.*
+dist/
+docsets/
+refinementTypes.bib
+report.md
+testFiles/*
